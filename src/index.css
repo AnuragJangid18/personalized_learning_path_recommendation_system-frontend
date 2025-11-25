@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:focus-visible {
+  outline: 2px solid var(--text-primary, #0A3041);
+  outline-offset: 2px;
+}
+
+@layer components {
+  /* Card */
+  .sv-card {
+    @apply rounded-2xl p-6 shadow-lg transition-all duration-300;
+    background: linear-gradient(to bottom right, #ffffff, #f8fafc);
+    border: 1px solid var(--border-card);
+    color: var(--text-primary);
+  }
+  .sv-card:hover {
+    @apply -translate-y-1 shadow-2xl;
+    background: linear-gradient(to bottom right, #ffffff, #fefefe);
+    border-color: #cbd5e1;
+  }
+
+  /* Buttons */
+  .sv-btn { @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold transition; }
+  .sv-btn-primary { @apply sv-btn bg-primary text-white hover:bg-secondary; }
+  .sv-btn-accent  { @apply sv-btn bg-accent text-white hover:bg-lightOrange; }
+  .sv-btn-danger  { @apply sv-btn bg-danger text-white hover:bg-red-700; }
+  .sv-btn-sm { @apply px-3 py-1.5 text-sm; }
+
+  /* Tabs */
+  .sv-tab { @apply px-4 py-2 text-base text-textLight border-b-2 border-transparent hover:text-primary transition; }
+  .sv-tab-active { @apply text-primary border-accent font-semibold; }
+
+  /* Course item */
+  .sv-course {
+    @apply rounded-[12px] p-4 cursor-pointer transition-colors duration-200 relative;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-card);
+    color: var(--text-primary);
+  }
+  .sv-course:hover {
+    background-color: var(--bg-hover);
+  }
+  .sv-course--completed {
+    background-color: var(--bg-completed);
+    border-left: 4px solid var(--border-success);
+  }
+  .sv-course--current {
+    background-color: var(--bg-current);
+    border-left: 4px solid var(--border-success);
+    @apply font-semibold;
+  }
+
+  /* Confidence chip */
+  .sv-chip { @apply absolute top-2 right-2 rounded-2xl px-2 py-0.5 text-xs font-semibold text-white bg-accent; }
+
+  /* Progress bar */
+  .sv-progress { @apply w-full h-2 bg-borderLight rounded-md overflow-hidden; }
+  .sv-progress > .sv-fill { background: linear-gradient(90deg, #28a745, #20c997); height: 100%; transition: width .3s ease; }
+
+  /* Stat tiles */
+  .sv-stat { @apply text-center p-3 bg-bgLight rounded-xl border border-borderLight; }
+  .sv-stat-value { @apply text-2xl font-bold text-primary; }
+  .sv-stat-label { @apply text-xs text-textLight; }
+
+  /* Feedback panel (commented out) */
+  /* .sv-feedback {
+    @apply p-4 rounded-xl border-2;
+    background-color: var(--bg-card);
+    border-color: var(--text-primary);
+  } */
+
+  /* RL log row */
+  .sv-log {
+    @apply flex justify-between items-center text-xs rounded-lg p-2;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-card);
+    color: var(--text-primary);
+  }
+}
+
+/* Fancy skeleton line */
+.sv-skeleton {
+  background: linear-gradient(90deg, #eee 25%, #f6f6f6 37%, #eee 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s linear infinite;
+  height: 1rem;
+  border-radius: 6px;
+  margin: .4rem 0;
+}
+
+/* Custom scrollbar for RL updates */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #a78bfa;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #8b5cf6;
+}
+
+/* Modal animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Improved transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Light mode variables */
+:root {
+  --bg-page: #f8fafc;
+  --text-primary: #0A3041;
+  /* Header colors (light) */
+  --bg-card: #ffffff;
+  --border-card: #e5e7eb;
+  --text-light: #6b7280;
+  --bg-hover: #e9ecef;
+  --bg-completed: #d4edda;
+  --bg-current: #cce7ff;
+  --border-success: #28a745;
+}
+
+/* Dark-mode variables removed — app keeps single light theme variables */
+
+/* Apply page background and general text color */
+html, body {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+}
+
+/* Header styling previously used CSS variables; header now uses inline Tailwind classes */
+
+/* General text styles */
+body, p, span, h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+}
+
+/* Remove redundant @apply in .dark selectors (handled by variables) */
+/* .dark .sv-card { @apply bg-slate-800 border-slate-700 text-slate-100; } */
+/* .dark .sv-log { @apply bg-slate-900 border-slate-700 text-slate-200; } */
+/* .dark .sv-course { @apply bg-slate-800 border-slate-700; } */
+/* .dark .sv-stat { @apply bg-slate-800 border-slate-700; } */
+/* .dark .sv-btn-primary { @apply bg-primary; } */
+
+/* Header specific dark tweaks removed when disabling theme toggle */
+
+/* Removed dark-mode helper rules */
