@@ -5,6 +5,7 @@ import Skeleton from "./components/Skeleton";
 import ProgressChart from "./components/ProgressChart";
 import ProfileForm from "./components/ProfileForm";
 import CheckpointPanel from './components/CheckpointPanel';
+import AIAssistant from './components/AIAssistant';
 import { useAuth } from './contexts/AuthContext';
 import api, { setAuthToken } from './lib/api';
 
@@ -12,11 +13,12 @@ const TAB_KEYS = {
   PATH: "learning-path",
   LESSON: "current-lesson",
   WHY: "explanation",
+  AI: "ai-assistant"
 };
 
 export default function App() {
   const { user, token } = useAuth();
-  const [active, setActive] = useState(TAB_KEYS.PATH);
+  const [active, setActive] = useState(TAB_KEYS.AI);
 
   // student/profile
   const [student, setStudent] = useState(null);
@@ -100,8 +102,8 @@ export default function App() {
       const { data } = await api.get(`/progress/${studentId}`);
       setCompleted(data.completedList || []);
       // also update quick stats with validation
-      setStats({ 
-        interactions: Math.max(0, data.interactions || 0), 
+      setStats({
+        interactions: Math.max(0, data.interactions || 0),
         correct: Math.max(0, Math.min(data.correct || 0, data.interactions || 0))
       });
     } catch (e) {
@@ -117,7 +119,7 @@ export default function App() {
   // Reset all frontend state and backend progress
   async function resetFrontendState() {
     const studentIdToReset = student?.id || user?.studentId;
-    
+
     try {
       // Reset backend progress first if student exists
       if (studentIdToReset) {
@@ -136,13 +138,13 @@ export default function App() {
         status: err.response?.status,
         studentId: studentIdToReset
       });
-      
+
       const errorMsg = err.response?.data?.error || err.response?.data?.details || err.message;
       const backendUrl = api.defaults.baseURL || 'backend (unknown URL)';
       alert(`Failed to reset progress on server: ${errorMsg}\n\nPlease make sure the backend is reachable at ${backendUrl}`);
       throw err; // Stop the regeneration if backend reset fails
     }
-    
+
     // Reset all frontend state
     setCompleted([]);
     setStats({ interactions: 0, correct: 0 });
@@ -152,34 +154,34 @@ export default function App() {
     setQuizAnswered(false);
     setSelectedAnswer(null);
     setLearningPath([]);
-    
+
     // Reset RL state
     setQState("New Learner");
     qlogRef.current = [];
-    
+
     // Reset dashboard
     setConfidence(0.82);
     setServerSeries(null);
-    
+
     // Go back to learning path tab
     setActive(TAB_KEYS.PATH);
-    
+
     return studentIdToReset;
   }
-  
+
   // Handle regenerate confirmation
   function handleRegenerateRequest(formData) {
-    console.log('Regenerate request:', { 
-      formData, 
-      hasStudent: !!student, 
+    console.log('Regenerate request:', {
+      formData,
+      hasStudent: !!student,
       studentId: student?.id,
       hasUser: !!user,
       userId: user?.studentId
     });
-    
+
     // Check if there's existing progress to warn about
     const hasProgress = completed.length > 0 || stats.interactions > 0;
-    
+
     if (hasProgress) {
       // Show confirmation dialog
       setPendingProfileUpdate(formData);
@@ -189,14 +191,14 @@ export default function App() {
       executeProfileUpdate(formData);
     }
   }
-  
+
   // Confirm regenerate and reset
   async function confirmRegenerate() {
     setShowRegenerateConfirm(false);
     if (pendingProfileUpdate) {
       try {
         console.log('Starting regeneration with student:', student?.id, 'user:', user?.studentId);
-        
+
         // Only reset if there's an existing student profile
         if (student?.id || user?.studentId) {
           await resetFrontendState();
@@ -217,7 +219,7 @@ export default function App() {
           setServerSeries(null);
           setActive(TAB_KEYS.PATH);
         }
-        
+
         // Then execute profile update
         await executeProfileUpdate(pendingProfileUpdate);
         setPendingProfileUpdate(null);
@@ -227,7 +229,7 @@ export default function App() {
       }
     }
   }
-  
+
   // Cancel regenerate
   function cancelRegenerate() {
     setShowRegenerateConfirm(false);
@@ -241,42 +243,42 @@ export default function App() {
       alert('Name is required');
       return;
     }
-    
+
     try {
       setSubmittingProfile(true);
 
       let profileRes;
-      
+
       // If user is authenticated, use their linked student ID
       if (user?.studentId) {
         // Update existing student profile via backend
         profileRes = await api.post(`/profile`, {
-          name: name.trim(), 
-          level, 
-          subject, 
-          style, 
-          goal, 
+          name: name.trim(),
+          level,
+          subject,
+          style,
+          goal,
           id: user.studentId
         });
         setStudent(profileRes.data);
       } else {
         // Create new student profile (guest mode)
         profileRes = await api.post(`/profile`, {
-          name: name.trim(), 
-          level, 
-          subject, 
-          style, 
+          name: name.trim(),
+          level,
+          subject,
+          style,
           goal,
         });
         setStudent(profileRes.data);
       }
 
       setLoadingPath(true);
-      
+
       // Use RL-based recommended path if user/student ID is available
       const studentIdToUse = user?.studentId || profileRes?.data?.id;
       let pathRes;
-      
+
       if (studentIdToUse) {
         try {
           pathRes = await api.get(`/learning-path/recommended`, {
@@ -298,16 +300,16 @@ export default function App() {
       const items = pathRes.data?.items || pathRes.data || [];
       setLearningPath(Array.isArray(items) ? items : []);
       setCurrentLesson(null);
-      
+
       // Get the correct student ID (profile update returns updated student)
       const studentIdForProgress = user?.studentId || profileRes?.data?.id || student?.id;
-      
+
       // Fetch student's persisted progress and dashboard
       if (studentIdForProgress) {
         await loadProgress(studentIdForProgress);
         await loadDashboard(studentIdForProgress);
       }
-      
+
       setActive(TAB_KEYS.PATH);
     } catch (err) {
       console.error(err);
@@ -319,42 +321,42 @@ export default function App() {
     }
   }
   // snapshotProvider returns the object to save
-function snapshotProvider() {
-  return {
-    student,         // student's profile object in state
-    completed,       // completed array
-    stats,           // stats object
-    currentLesson,   // currentLesson string
-    lesson,          // lesson object (overview/prereqs/etc)
-    learningPath,    // full learning path array
-    qState,          // RL algorithm state string
-    qlog: qlogRef.current // RL log history
-  };
-}
+  function snapshotProvider() {
+    return {
+      student,         // student's profile object in state
+      completed,       // completed array
+      stats,           // stats object
+      currentLesson,   // currentLesson string
+      lesson,          // lesson object (overview/prereqs/etc)
+      learningPath,    // full learning path array
+      qState,          // RL algorithm state string
+      qlog: qlogRef.current // RL log history
+    };
+  }
 
-function handleRestore(snapshot) {
-  // Carefully overwrite frontend state to restore checkpoint
-  if (snapshot.student) setStudent(snapshot.student);
-  if (Array.isArray(snapshot.completed)) setCompleted(snapshot.completed);
-  if (snapshot.stats) setStats(snapshot.stats);
-  if (Array.isArray(snapshot.learningPath)) setLearningPath(snapshot.learningPath);
-  if (typeof snapshot.qState === 'string') setQState(snapshot.qState);
-  if (Array.isArray(snapshot.qlog)) qlogRef.current = snapshot.qlog;
-  if (snapshot.currentLesson) {
-    // optionally fetch lesson details again from server or set local state
-    startLesson(snapshot.currentLesson);
-  } else {
-    setCurrentLesson(null);
-    setLesson(null);
+  function handleRestore(snapshot) {
+    // Carefully overwrite frontend state to restore checkpoint
+    if (snapshot.student) setStudent(snapshot.student);
+    if (Array.isArray(snapshot.completed)) setCompleted(snapshot.completed);
+    if (snapshot.stats) setStats(snapshot.stats);
+    if (Array.isArray(snapshot.learningPath)) setLearningPath(snapshot.learningPath);
+    if (typeof snapshot.qState === 'string') setQState(snapshot.qState);
+    if (Array.isArray(snapshot.qlog)) qlogRef.current = snapshot.qlog;
+    if (snapshot.currentLesson) {
+      // optionally fetch lesson details again from server or set local state
+      startLesson(snapshot.currentLesson);
+    } else {
+      setCurrentLesson(null);
+      setLesson(null);
+    }
+    // Sync restored progress to backend
+    if (snapshot.student?.id && Array.isArray(snapshot.completed)) {
+      api.post(`/progress`, {
+        studentId: snapshot.student.id,
+        // Backend will merge these stats
+      }).catch(err => console.error('Failed to sync restored progress', err));
+    }
   }
-  // Sync restored progress to backend
-  if (snapshot.student?.id && Array.isArray(snapshot.completed)) {
-    api.post(`/progress`, {
-      studentId: snapshot.student.id,
-      // Backend will merge these stats
-    }).catch(err => console.error('Failed to sync restored progress', err));
-  }
-}
 
   // helper: check if prerequisites of a course are satisfied by completed list
   function prerequisitesMet(course) {
@@ -386,7 +388,7 @@ function handleRestore(snapshot) {
   // Quiz answer logic (with backend logging)
   function selectOption(i) {
     if (!quiz || quizAnswered) return; // Prevent multiple answers
-    
+
     const correct = i === quiz.correct;
     setQuizAnswered(true);
     setSelectedAnswer(i);
@@ -423,14 +425,14 @@ function handleRestore(snapshot) {
       alert("You need a profile to save progress.");
       return;
     }
-    
+
     // Check if already completed
     if (completed.includes(currentLesson)) {
       alert("This lesson is already completed!");
       setActive(TAB_KEYS.PATH);
       return;
     }
-    
+
     try {
       await api.post(`/progress`, {
         studentId: student.id,
@@ -455,17 +457,17 @@ function handleRestore(snapshot) {
   // Progress Dashboard calculations (memoized for performance)
   const totalLessons = useMemo(() => learningPath.length, [learningPath]);
   const completedLessons = useMemo(() => completed.length, [completed]);
-  
+
   // Progress: percent of completed lessons (max 100)
   const progressPct = useMemo(() => {
     return totalLessons ? Math.min(100, Math.round((completedLessons / totalLessons) * 100)) : 0;
   }, [totalLessons, completedLessons]);
-  
+
   // Engagement: percent of lessons attempted (completed or started)
   const engagementPct = useMemo(() => {
     return totalLessons ? Math.min(100, Math.round((completedLessons / totalLessons) * 100)) : 0;
   }, [totalLessons, completedLessons]);
-  
+
   // Performance: percent correct answers for attempted lessons (if tracked)
   const performancePct = useMemo(() => {
     return stats.interactions > 0 ? Math.min(100, Number(accuracy)) : 0;
@@ -490,12 +492,12 @@ function handleRestore(snapshot) {
     const history = [0]; // Start at 0
     if (completedLessons > 0 && stats.interactions > 0) {
       const currentPerf = Number(accuracy);
-      
+
       // Simulate gradual improvement curve toward current performance
       for (let i = 1; i <= completedLessons; i++) {
         // Early lessons: lower performance, gradually improving
         const progressRatio = i / completedLessons;
-        
+
         // Use a sigmoid-like curve for realistic learning progression
         // Early stage: 40-60% of final performance
         // Mid stage: 70-85% of final performance  
@@ -511,7 +513,7 @@ function handleRestore(snapshot) {
           // Late stage: 85-100% performance
           performanceMultiplier = 0.85 + ((progressRatio - 0.7) / 0.3) * 0.15;
         }
-        
+
         const estimatedPerf = Math.round(currentPerf * performanceMultiplier);
         history.push(Math.min(100, Math.max(0, estimatedPerf)));
       }
@@ -528,12 +530,12 @@ function handleRestore(snapshot) {
           backgroundSize: '40px 40px'
         }}></div>
       </div>
-      
+
       <Header />
 
-      <div className="max-w-[1400px] mx-auto px-6 sm:px-10 py-8 grid gap-6 lg:grid-cols-[1fr_2fr_1fr] relative z-10">
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-10 py-8 grid gap-6 lg:grid-cols-[1fr_2fr_1fr] relative z-10 items-start">
         {/* LEFT: Profile */}
-        <section className="sv-card space-y-4">
+        <section className="sv-card space-y-4 min-w-0">
           <div className="flex items-center justify-between border-b pb-3">
             <h3 className="text-xl font-semibold text-primary flex items-center gap-2">
               <span>👤</span>
@@ -550,12 +552,12 @@ function handleRestore(snapshot) {
             initial={
               student
                 ? {
-                    name: student.name,
-                    level: student.level,
-                    subject: student.subject,
-                    style: student.style,
-                    goal: student.goal,
-                  }
+                  name: student.name,
+                  level: student.level,
+                  subject: student.subject,
+                  style: student.style,
+                  goal: student.goal,
+                }
                 : null
             }
             onSubmit={handleRegenerateRequest}
@@ -575,22 +577,21 @@ function handleRestore(snapshot) {
                   </div>
                 )}
               </div>
-              
+
               <div className="space-y-3">
                 {/* Current State Card */}
                 <div className="bg-white rounded-lg p-3 border border-purple-100 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs text-slate-600 font-medium">Current State</div>
-                    <div className={`text-[9px] px-2 py-0.5 rounded-full font-semibold ${
-                      qState === 'Master' ? 'bg-green-100 text-green-700' :
+                    <div className={`text-[9px] px-2 py-0.5 rounded-full font-semibold ${qState === 'Master' ? 'bg-green-100 text-green-700' :
                       qState === 'Intermediate' ? 'bg-blue-100 text-blue-700' :
-                      qState === 'Advanced' ? 'bg-purple-100 text-purple-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
+                        qState === 'Advanced' ? 'bg-purple-100 text-purple-700' :
+                          'bg-yellow-100 text-yellow-700'
+                      }`}>
                       {qState === 'Master' ? '⭐ Elite' :
-                       qState === 'Advanced' ? '🚀 Advanced' :
-                       qState === 'Intermediate' ? '📈 Growing' :
-                       '🌱 Learning'}
+                        qState === 'Advanced' ? '🚀 Advanced' :
+                          qState === 'Intermediate' ? '📈 Growing' :
+                            '🌱 Learning'}
                     </div>
                   </div>
                   <div className="text-sm font-bold text-purple-700">{qState}</div>
@@ -609,11 +610,10 @@ function handleRestore(snapshot) {
                     </div>
                     <div className="bg-white rounded-lg p-2 border border-purple-100 text-center">
                       <div className="text-xs text-slate-600 mb-1">Rate</div>
-                      <div className={`text-lg font-bold ${
-                        accuracy >= 80 ? 'text-green-600' :
+                      <div className={`text-lg font-bold ${accuracy >= 80 ? 'text-green-600' :
                         accuracy >= 60 ? 'text-blue-600' :
-                        'text-orange-600'
-                      }`}>
+                          'text-orange-600'
+                        }`}>
                         {accuracy}%
                       </div>
                     </div>
@@ -633,7 +633,7 @@ function handleRestore(snapshot) {
                       </div>
                     )}
                   </div>
-                  
+
                   {qlogRef.current.length === 0 ? (
                     <div className="bg-white rounded-lg p-4 border border-purple-100 text-center">
                       <div className="text-2xl mb-2">💡</div>
@@ -649,7 +649,7 @@ function handleRestore(snapshot) {
                       {qlogRef.current.map((e, idx) => {
                         const isPositive = e.reward >= 0;
                         const rewardLevel = e.reward >= 0.7 ? 'high' : e.reward >= 0.4 ? 'medium' : e.reward >= 0 ? 'low' : 'negative';
-                        
+
                         return (
                           <div key={idx} className="bg-white rounded-lg p-2 border border-purple-100 animate-fade-in hover:shadow-sm transition-shadow">
                             <div className="flex items-start justify-between gap-2 mb-1">
@@ -657,21 +657,19 @@ function handleRestore(snapshot) {
                                 <div className="text-[10px] text-slate-500 mb-0.5">State Transition</div>
                                 <div className="text-xs font-medium text-slate-800 truncate">{e.state}</div>
                               </div>
-                              <div className={`text-[9px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${
-                                isPositive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                              }`}>
+                              <div className={`text-[9px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${isPositive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                                }`}>
                                 {isPositive ? '✓' : '✗'} {e.reward >= 0 ? '+' : ''}{e.reward.toFixed(2)}
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5">
                               <div className="text-[10px] text-slate-500">Action:</div>
                               <div className="text-[11px] font-medium text-blue-600 truncate flex-1">{e.action}</div>
-                              <div className={`w-1.5 h-1.5 rounded-full ${
-                                rewardLevel === 'high' ? 'bg-green-500' :
+                              <div className={`w-1.5 h-1.5 rounded-full ${rewardLevel === 'high' ? 'bg-green-500' :
                                 rewardLevel === 'medium' ? 'bg-blue-500' :
-                                rewardLevel === 'low' ? 'bg-yellow-500' :
-                                'bg-red-500'
-                              }`}></div>
+                                  rewardLevel === 'low' ? 'bg-yellow-500' :
+                                    'bg-red-500'
+                                }`}></div>
                             </div>
                           </div>
                         );
@@ -710,23 +708,31 @@ function handleRestore(snapshot) {
         </section>
 
         {/* CENTER: Tabs */}
-        <section className="sv-card">
+        <section className="sv-card min-w-0">
           <div className="border-b border-slate-200 pb-3 mb-4">
             <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-              <span>🎓</span>
-              <span>Learning Center</span>
+              <span>🤖</span>
+              <span>Academic AI Assistant</span>
             </h2>
-            <p className="text-xs text-slate-500 mt-1">Your personalized learning journey</p>
+            <p className="text-xs text-slate-500 mt-1">Research academic topics, chat with documents, and summarize findings</p>
           </div>
           <Tabs
             active={active}
             onChange={setActive}
             tabs={[
+              { id: TAB_KEYS.AI, label: "🤖 AI Research Assistant" },
               { id: TAB_KEYS.PATH, label: "📚 Learning Path" },
               { id: TAB_KEYS.LESSON, label: "📖 Current Lesson" },
               { id: TAB_KEYS.WHY, label: "🤔 Why This Path?" },
             ]}
           />
+
+          {/* AI Assistant Tab */}
+          {active === TAB_KEYS.AI && (
+            <div className="px-6 pb-6">
+              <AIAssistant />
+            </div>
+          )}
 
           {/* Learning Path */}
           {active === TAB_KEYS.PATH && (
@@ -752,17 +758,17 @@ function handleRestore(snapshot) {
                             // First, fetch the latest student profile to ensure we have current preferences
                             const studentRes = await api.get(`/student/${studentIdToUse}`);
                             const latestStudent = studentRes.data;
-                            
+
                             // Update student state with latest profile data
                             setStudent(latestStudent);
-                            
+
                             // Now get the recommended path with latest student preferences
                             const pathRes = await api.get(`/learning-path/recommended`, {
                               params: { studentId: studentIdToUse },
                             });
                             const items = pathRes.data?.items || pathRes.data || [];
                             setLearningPath(Array.isArray(items) ? items : []);
-                            
+
                             // Also refresh progress and dashboard
                             await loadProgress(studentIdToUse);
                             await loadDashboard();
@@ -809,7 +815,7 @@ function handleRestore(snapshot) {
                   const isCompleted = completed.includes(course.name);
                   const met = prerequisitesMet(course);
                   const isLocked = !met;
-                  
+
                   const difficultyColors = {
                     1: 'bg-green-100 text-green-700',
                     2: 'bg-blue-100 text-blue-700',
@@ -821,8 +827,8 @@ function handleRestore(snapshot) {
                   const variant = isCompleted
                     ? "sv-course--completed"
                     : (!isLocked && !isCompleted)
-                    ? "sv-course--current"
-                    : "";
+                      ? "sv-course--current"
+                      : "";
 
                   return (
                     <li key={course.name} className="w-full">
@@ -837,14 +843,13 @@ function handleRestore(snapshot) {
                       >
                         <div className="flex items-start gap-3">
                           {/* Course Number Badge */}
-                          <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                            isCompleted ? 'bg-green-600 text-white' :
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${isCompleted ? 'bg-green-600 text-white' :
                             isLocked ? 'bg-gray-300 text-gray-600' :
-                            'bg-blue-600 text-white'
-                          }`}>
+                              'bg-blue-600 text-white'
+                            }`}>
                             {index + 1}
                           </div>
-                          
+
                           {/* Course Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -853,7 +858,7 @@ function handleRestore(snapshot) {
                                 {isCompleted ? '✅' : !isLocked ? '▶️' : '🔒'}
                               </div>
                             </div>
-                            
+
                             <div className="flex items-center gap-2 flex-wrap text-xs">
                               <span className={`px-2 py-0.5 rounded-full font-semibold ${difficultyColors[course.difficulty] || difficultyColors[2]}`}>
                                 Level {course.difficulty}/4
@@ -870,14 +875,14 @@ function handleRestore(snapshot) {
                                 </>
                               )}
                             </div>
-                            
+
                             {course.prerequisites?.length > 0 && (
                               <div className="text-xs mt-2 text-slate-500 flex items-start gap-1">
                                 <span className="flex-shrink-0">🔗</span>
                                 <span className="truncate">Prereqs: {course.prerequisites.join(", ")}</span>
                               </div>
                             )}
-                            
+
                             {(!isLocked && !isCompleted) && (
                               <div className="mt-3 sv-progress">
                                 <div className="sv-fill" style={{ width: '0%' }} />
@@ -982,11 +987,10 @@ function handleRestore(snapshot) {
                           <h5 className="font-bold text-primary">Knowledge Check</h5>
                         </div>
                         {quizAnswered && (
-                          <div className={`text-xs font-bold px-3 py-1 rounded-full ${
-                            selectedAnswer === quiz.correct 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-red-100 text-red-700'
-                          }`}>
+                          <div className={`text-xs font-bold px-3 py-1 rounded-full ${selectedAnswer === quiz.correct
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                            }`}>
                             {selectedAnswer === quiz.correct ? '✓ Correct!' : '✗ Incorrect'}
                           </div>
                         )}
@@ -999,9 +1003,9 @@ function handleRestore(snapshot) {
                           const isSelected = selectedAnswer === i;
                           const isCorrect = i === quiz.correct;
                           const showResult = quizAnswered;
-                          
+
                           let buttonClass = "border-2 border-slate-200 rounded-lg p-3 text-left transition-all text-sm font-medium ";
-                          
+
                           if (!showResult) {
                             buttonClass += "hover:border-blue-400 hover:bg-blue-50 cursor-pointer";
                           } else {
@@ -1015,7 +1019,7 @@ function handleRestore(snapshot) {
                               buttonClass += "opacity-50 cursor-not-allowed";
                             }
                           }
-                          
+
                           return (
                             <button
                               key={i}
@@ -1039,13 +1043,12 @@ function handleRestore(snapshot) {
                           );
                         })}
                       </div>
-                      
+
                       {quizAnswered && (
-                        <div className={`rounded-lg p-3 text-sm ${
-                          selectedAnswer === quiz.correct
-                            ? 'bg-green-100 border border-green-300 text-green-800'
-                            : 'bg-blue-100 border border-blue-300 text-blue-800'
-                        }`}>
+                        <div className={`rounded-lg p-3 text-sm ${selectedAnswer === quiz.correct
+                          ? 'bg-green-100 border border-green-300 text-green-800'
+                          : 'bg-blue-100 border border-blue-300 text-blue-800'
+                          }`}>
                           {selectedAnswer === quiz.correct ? (
                             <div className="flex items-start gap-2">
                               <span className="text-lg">🎉</span>
@@ -1065,11 +1068,11 @@ function handleRestore(snapshot) {
                           )}
                         </div>
                       )}
-                      
+
                       <div className="pt-2">
-                        <button 
-                          onClick={completeLesson} 
-                          disabled={!quizAnswered} 
+                        <button
+                          onClick={completeLesson}
+                          disabled={!quizAnswered}
                           className="sv-btn-accent w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <span>✓</span>
@@ -1115,11 +1118,10 @@ function handleRestore(snapshot) {
                   </div>
                   <div className="bg-white rounded-lg p-3 border border-indigo-100">
                     <div className="text-xs text-slate-600 mb-1">Quiz Accuracy</div>
-                    <div className={`text-sm font-bold ${
-                      accuracy >= 80 ? 'text-green-600' :
+                    <div className={`text-sm font-bold ${accuracy >= 80 ? 'text-green-600' :
                       accuracy >= 60 ? 'text-blue-600' :
-                      'text-orange-600'
-                    }`}>{accuracy}%</div>
+                        'text-orange-600'
+                      }`}>{accuracy}%</div>
                   </div>
                 </div>
               </div>
@@ -1188,11 +1190,11 @@ function handleRestore(snapshot) {
                       <span className="ml-auto text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">40%</span>
                     </div>
                     <p className="text-xs text-textLight mt-1">
-                      {accuracy > 80 
+                      {accuracy > 80
                         ? "Your high accuracy means the system suggests more challenging content to accelerate your learning."
-                        : accuracy < 50 
-                        ? "The system is recommending easier lessons to help build your foundation and confidence."
-                        : "You're progressing steadily. The system balances difficulty to maintain optimal challenge."}
+                        : accuracy < 50
+                          ? "The system is recommending easier lessons to help build your foundation and confidence."
+                          : "You're progressing steadily. The system balances difficulty to maintain optimal challenge."}
                     </p>
                   </div>
 
@@ -1203,13 +1205,13 @@ function handleRestore(snapshot) {
                       <span className="ml-auto text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full">20%</span>
                     </div>
                     <p className="text-xs text-textLight mt-1">
-                      {student?.style === 'visual' 
+                      {student?.style === 'visual'
                         ? "Prioritizing lessons with visual elements like Computer Vision and image processing."
                         : student?.style === 'theoretical'
-                        ? "Focusing on theory-heavy lessons with mathematical foundations and algorithms."
-                        : student?.style === 'hands-on'
-                        ? "Emphasizing practical, high-effort lessons with real implementations."
-                        : "Balanced approach considering your auditory learning preference."}
+                          ? "Focusing on theory-heavy lessons with mathematical foundations and algorithms."
+                          : student?.style === 'hands-on'
+                            ? "Emphasizing practical, high-effort lessons with real implementations."
+                            : "Balanced approach considering your auditory learning preference."}
                     </p>
                   </div>
 
@@ -1220,11 +1222,11 @@ function handleRestore(snapshot) {
                       <span className="ml-auto text-xs bg-green-600 text-white px-2 py-0.5 rounded-full">20%</span>
                     </div>
                     <p className="text-xs text-textLight mt-1">
-                      {student?.goal === 'Career' 
+                      {student?.goal === 'Career'
                         ? "Prioritizing career-oriented lessons like software engineering, web development, and cloud computing."
                         : student?.goal === 'Research'
-                        ? "Focusing on research-oriented topics like advanced ML, optimization, and theoretical foundations."
-                        : "Balanced curriculum covering both practical skills and theoretical knowledge."}
+                          ? "Focusing on research-oriented topics like advanced ML, optimization, and theoretical foundations."
+                          : "Balanced curriculum covering both practical skills and theoretical knowledge."}
                     </p>
                   </div>
 
@@ -1238,8 +1240,8 @@ function handleRestore(snapshot) {
                       {completedLessons < totalLessons * 0.3
                         ? "Early stage: suggesting easier lessons to build momentum and confidence."
                         : completedLessons > totalLessons * 0.7
-                        ? "Advanced stage: introducing challenging lessons to maintain engagement."
-                        : "Mid-journey: balancing difficulty to maintain steady progress."}
+                          ? "Advanced stage: introducing challenging lessons to maintain engagement."
+                          : "Mid-journey: balancing difficulty to maintain steady progress."}
                     </p>
                   </div>
 
@@ -1261,7 +1263,7 @@ function handleRestore(snapshot) {
         </section>
 
         {/* RIGHT: Progress Dashboard & Checkpoints */}
-        <section className="sv-card space-y-4">
+        <section className="sv-card space-y-4 min-w-0">
           <div className="flex items-center justify-between border-b pb-3">
             <h3 className="text-xl font-medium text-primary flex items-center gap-2">
               <span>📊</span>
@@ -1276,30 +1278,30 @@ function handleRestore(snapshot) {
 
           {/* Enhanced Stats Grid */}
           <div className="grid grid-cols-2 gap-3">
-            <Stat 
-              icon="✅" 
-              label="Completed" 
+            <Stat
+              icon="✅"
+              label="Completed"
               value={completedLessons}
               color="success"
               subtitle={totalLessons > 0 ? `of ${totalLessons} lessons` : 'Start learning!'}
             />
-            <Stat 
-              icon="📈" 
-              label="Progress" 
+            <Stat
+              icon="📈"
+              label="Progress"
               value={`${progressPct}%`}
               color={progressPct >= 75 ? 'success' : progressPct >= 50 ? 'info' : 'warning'}
               subtitle={progressPct >= 75 ? 'Excellent!' : progressPct >= 50 ? 'Keep going!' : 'Just started'}
             />
-            <Stat 
-              icon="⚡" 
-              label="Engagement" 
+            <Stat
+              icon="⚡"
+              label="Engagement"
               value={`${engagementPct}%`}
               color={engagementPct >= 70 ? 'success' : engagementPct >= 40 ? 'info' : 'warning'}
               subtitle={engagementPct >= 70 ? 'Very active' : engagementPct >= 40 ? 'Good pace' : 'Get started'}
             />
-            <Stat 
-              icon="🎯" 
-              label="Accuracy" 
+            <Stat
+              icon="🎯"
+              label="Accuracy"
               value={stats.interactions > 0 ? `${performancePct}%` : 'N/A'}
               color={performancePct >= 80 ? 'success' : performancePct >= 60 ? 'info' : 'warning'}
               subtitle={stats.interactions > 0 ? `${stats.correct}/${stats.interactions} correct` : 'No quizzes yet'}
@@ -1342,7 +1344,7 @@ function handleRestore(snapshot) {
               performanceHistory={performanceHistory}
             />
           </div>
-          
+
           {completedLessons > 0 && (
             <div className="text-xs text-textLight bg-slate-50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
@@ -1375,7 +1377,7 @@ function handleRestore(snapshot) {
           )}
         </section>
       </div>
-      
+
       {/* Footer */}
       <footer className="bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 text-white mt-12 relative z-10">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-10 py-8">
@@ -1390,7 +1392,7 @@ function handleRestore(snapshot) {
                 An intelligent recommendation system using reinforcement learning to create personalized learning paths tailored to individual student needs.
               </p>
             </div>
-            
+
             {/* Column 2: Features - Center aligned */}
             <div className="md:justify-self-center">
               <div className="flex items-center gap-2 mb-3">
@@ -1416,7 +1418,7 @@ function handleRestore(snapshot) {
                 </li>
               </ul>
             </div>
-            
+
             {/* Column 3: Institute Info - Right aligned */}
             <div className="md:justify-self-end">
               <div className="flex items-center gap-2 mb-3">
@@ -1429,14 +1431,14 @@ function handleRestore(snapshot) {
                   <div className="text-xs text-white mt-0.5">Bangalore, Karnataka</div>
                 </div>
                 <div className="pt-2 border-t border-slate-700">
-                  <div className="text-xs font-semibold text-cyan-400">Mini Project - BCI568</div>
+                  <div className="text-xs font-semibold text-cyan-400"></div>
                   <div className="text-xs text-white mt-0.5">Department of Computer Science & Engineering</div>
                   <div className="text-xs text-white">Specialization: AI & ML</div>
                 </div>
               </div>
             </div>
           </div>
-          
+
           {/* Bottom bar */}
           <div className="border-t border-slate-700 mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div>
@@ -1455,14 +1457,14 @@ function handleRestore(snapshot) {
           </div>
         </div>
       </footer>
-      
+
       {/* Regenerate Confirmation Modal */}
       {showRegenerateConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 px-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 border-2 border-orange-200 animate-scale-in relative">
             {/* Decorative corner accent */}
             <div className="absolute top-0 right-0 w-20 h-20 bg-orange-100 rounded-bl-full opacity-50"></div>
-            
+
             <div className="relative z-10">
               <div className="flex items-start gap-4 mb-5">
                 <div className="bg-orange-100 p-3 rounded-xl">
@@ -1473,7 +1475,7 @@ function handleRestore(snapshot) {
                   <p className="text-sm text-slate-600">This action will reset all your current progress</p>
                 </div>
               </div>
-              
+
               <div className="bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-xl p-5 mb-5 shadow-inner">
                 <div className="text-sm text-orange-900 space-y-3">
                   <div className="flex items-center gap-2 font-bold text-orange-700">
@@ -1506,7 +1508,7 @@ function handleRestore(snapshot) {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={cancelRegenerate}
@@ -1538,14 +1540,14 @@ function Stat({ label, value, icon, color = 'primary', subtitle }) {
     warning: 'text-orange-600 bg-orange-50 border-orange-200',
     info: 'text-blue-600 bg-blue-50 border-blue-200'
   };
-  
+
   const iconBgClasses = {
     primary: 'bg-blue-100',
     success: 'bg-green-100',
     warning: 'bg-orange-100',
     info: 'bg-blue-100'
   };
-  
+
   return (
     <div className={`text-center p-3 rounded-xl border-2 ${colorClasses[color]} group hover:scale-105 hover:shadow-lg transition-all duration-200 cursor-default`}>
       {icon && (

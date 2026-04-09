@@ -12,7 +12,7 @@ export default function Header() {
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-400 rounded-full filter blur-3xl animate-pulse"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-400 rounded-full filter blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
       </div>
-      
+
       <div className="max-w-[1400px] mx-auto px-10 py-8 relative z-10">
         <div className="flex justify-between items-start gap-6">
           {/* Left: Branding */}
@@ -23,8 +23,8 @@ export default function Header() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-white tracking-tight leading-tight">
-                  Personalized Learning Path
-                  <span className="block text-2xl font-semibold text-cyan-200 mt-1">Recommendation System</span>
+                  Smart AI Tutor for Students
+                  <span className="block text-2xl font-semibold text-cyan-200 mt-1">& Recommendation System</span>
                 </h1>
               </div>
             </div>
@@ -40,12 +40,12 @@ export default function Header() {
                 </li>
                 <li className="flex items-center gap-2 text-white">
                   <span className="ml-2">💻</span>
-                  <span className="text-white">CSE (AI & ML) | BCI568: MINI PROJECT</span>
+                  <span className="text-white">CSE (AI & ML)</span>
                 </li>
               </ol>
             </div>
           </div>
-          
+
           {/* Right: Auth Section */}
           <div className="text-right">
             {user ? (
